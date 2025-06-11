@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Business Card Studio</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@600;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #111827; }
+        .control-panel { background-color: #1F2937; border: 1px solid #374151; }
+        .card-preview-wrapper { width: 350px; height: 200px; position: relative; background-color: #374151; border-radius: 0.5rem; overflow: hidden; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); }
+        .card-background { position: absolute; width: 100%; height: 100%; background-size: cover; background-position: center; }
+        #card-back .card-background { transform: scaleX(-1); }
+        .draggable { position: absolute; cursor: move; user-select: none; padding: 2px 4px; }
+        .draggable:not(img) { text-shadow: 0 1px 3px rgba(0,0,0,0.5); }
+        .draggable.selected { border: 2px dashed #3b82f6; }
+        img.draggable { width: 120px; height: auto; }
+        img.draggable.selected { resize: both; overflow: hidden; }
+        .loader-container { position: absolute; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(4px); display: flex; flex-direction:column; align-items: center; justify-content: center; z-index: 50; }
+        .loader { border: 4px solid #4B5563; border-top: 4px solid #38BDF8; border-radius: 50%; width: 50px; height: 50px; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .social-checkbox-label { display: flex; align-items: center; background-color: #374151; border-radius: 8px; padding: 8px 12px; cursor: pointer; transition: all 0.2s ease; border: 1px solid #4B5563; }
+        .social-checkbox-label:hover { background-color: #4B5563; }
+        .social-checkbox { display: none; }
+        .social-checkbox:checked + .social-checkbox-label { background-color: #38BDF8; border-color: #38BDF8; color: #111827; font-weight: 600; }
+        .social-checkbox:checked + .social-checkbox-label i { color: #111827; }
+        .image-option.selected { border-color: #38BDF8; }
+        .social-icon-instagram { background: -webkit-linear-gradient(45deg, #f09433 0%,#e6683c 25%,#dc2743 50%,#cc2366 75%,#bc1888 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .social-icon-x { color: #ffffff !important; }
+        .social-icon-linkedin { color: #0A66C2; }
+        .social-icon-facebook { color: #1877F2; }
+        .social-item-text { transition: color 0.2s ease-in-out; }
+    </style>
+</head>
+<body class="text-gray-200">
+
+    <div class="container mx-auto p-4 md:p-8">
+        <header class="text-center mb-8">
+            <h1 class="text-3xl md:text-4xl font-bold text-white" style="font-family: 'Poppins', sans-serif;">AI Business Card Studio</h1>
+        </header>
+
+        <main id="designer-view">
+            <div class="flex flex-col lg:flex-row gap-8">
+                <div class="w-full lg:w-1/3 control-panel p-6 rounded-lg shadow-2xl">
+                    <h2 class="text-2xl font-semibold mb-6 text-white">Design Controls</h2>
+                    <div class="space-y-6">
+                        <div>
+                            <h3 class="text-lg font-semibold mb-3 text-sky-400">1. Generate Background</h3>
+                            <label for="image-reference" class="block text-sm font-medium text-gray-400 mb-2">Upload an image for inspiration</label>
+                            <input type="file" id="image-reference" accept="image/*" class="w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-gray-600 file:text-sky-300 hover:file:bg-gray-500"/>
+                            <button id="generate-business-card" class="mt-3 w-full bg-sky-600 text-white font-bold py-3 px-4 rounded-md hover:bg-sky-700 transition duration-300">Generate with AI</button>
+                            <div class="mt-2 flex items-center">
+                                <input type="checkbox" id="white-back-check" class="h-4 w-4 rounded border-gray-500 bg-gray-700 text-sky-500 focus:ring-sky-600">
+                                <label for="white-back-check" class="ml-2 block text-sm text-gray-400">Use white background for back</label>
+                            </div>
+                            <p id="image-ref-status" class="text-xs text-gray-500 mt-2"></p>
+                        </div>
+                        <div id="image-options-container" class="hidden">
+                            <h3 class="text-lg font-semibold mb-3 text-sky-400">Choose a Background</h3>
+                            <div id="image-options-grid" class="grid grid-cols-3 gap-2"></div>
+                            <p class="text-xs text-gray-500 mt-2 text-center">Not quite right? Click "Generate with AI" again for new options.</p>
+                        </div>
+                        <div class="mb-6">
+                             <h3 class="text-lg font-semibold mb-3 text-sky-400">2. Upload Your Logo</h3>
+                             <input type="file" id="logo-upload" accept="image/*" class="w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-gray-600 file:text-sky-300 hover:file:bg-gray-500"/>
+                        </div>
+                        <div>
+                            <h3 class="text-lg font-semibold mb-3 text-sky-400">3. Add Your Details</h3>
+                            <div class="space-y-3">
+                                <input type="text" id="name-input" class="text-input w-full p-2 bg-gray-700 border border-gray-600 rounded-md text-white placeholder-gray-400" placeholder="Name / Company">
+                                <input type="text" id="title-input" class="text-input w-full p-2 bg-gray-700 border border-gray-600 rounded-md text-white placeholder-gray-400" placeholder="Title / Position">
+                                <input type="text" id="phone-input" class="text-input w-full p-2 bg-gray-700 border border-gray-600 rounded-md text-white placeholder-gray-400" placeholder="Telephone">
+                                <input type="text" id="slogan-input" class="text-input w-full p-2 bg-gray-700 border border-gray-600 rounded-md text-white placeholder-gray-400" placeholder="Company Slogan (for back)">
+                                 <div class="grid grid-cols-2 gap-2 pt-2">
+                                    <input type="checkbox" id="email-check" class="social-checkbox" data-type="email">
+                                    <label for="email-check" class="social-checkbox-label"><i class="fas fa-envelope fa-fw mr-2 text-gray-400"></i> Email</label>
+                                    <input type="checkbox" id="website-check" class="social-checkbox" data-type="website">
+                                    <label for="website-check" class="social-checkbox-label"><i class="fas fa-globe fa-fw mr-2 text-gray-400"></i> Website</label>
+                                    <input type="checkbox" id="instagram-check" class="social-checkbox" data-type="instagram">
+                                    <label for="instagram-check" class="social-checkbox-label"><i class="fab fa-instagram fa-fw mr-2 text-gray-400"></i> Instagram</label>
+                                    <input type="checkbox" id="x-check" class="social-checkbox" data-type="x">
+                                    <label for="x-check" class="social-checkbox-label"><i class="fa-brands fa-x-twitter fa-fw mr-2 text-gray-400"></i> X</label>
+                                    <input type="checkbox" id="linkedin-check" class="social-checkbox" data-type="linkedin">
+                                    <label for="linkedin-check" class="social-checkbox-label"><i class="fab fa-linkedin-in fa-fw mr-2 text-gray-400"></i> LinkedIn</label>
+                                     <input type="checkbox" id="facebook-check" class="social-checkbox" data-type="facebook">
+                                    <label for="facebook-check" class="social-checkbox-label"><i class="fab fa-facebook-f fa-fw mr-2 text-gray-400"></i> Facebook</label>
+                                </div>
+                                <div id="social-inputs" class="space-y-2 pt-2"></div>
+                            </div>
+                        </div>
+                        <div class="mb-6 opacity-50" id="style-controls">
+                             <h3 class="text-lg font-semibold mb-3 text-sky-400">4. Style Selected Item</h3>
+                             <p id="style-helper" class="text-xs text-gray-500 mb-3">Click an item on the card to style it.</p>
+                            <div id="text-style-options" class="grid grid-cols-2 gap-4">
+                                <div><label for="font-family" class="block text-sm font-medium text-gray-400">Font</label><select id="font-family" class="w-full p-2 bg-gray-700 border border-gray-600 rounded-md text-white"><option value="'Inter', sans-serif">Inter</option><option value="'Poppins', sans-serif">Poppins</option><option value="'Roboto Mono', monospace">Roboto Mono</option></select></div>
+                                 <div><label for="font-size" class="block text-sm font-medium text-gray-400">Size (px)</label><input type="number" id="font-size" value="12" min="6" max="40" class="w-full p-2 bg-gray-700 border border-gray-600 rounded-md text-white"></div>
+                                 <div><label for="font-color" class="block text-sm font-medium text-gray-400">Color</label><input type="color" id="font-color" value="#FFFFFF" class="w-full h-10 p-1 bg-gray-700 border border-gray-600 rounded-md"></div>
+                                  <div><label class="block text-sm font-medium text-gray-400">Weight</label><select id="font-weight" class="w-full p-2 bg-gray-700 border border-gray-600 rounded-md text-white"><option value="400">Normal</option><option value="700">Bold</option></select></div>
+                            </div>
+                            <div id="logo-style-options" class="hidden mt-4">
+                                <button id="delete-logo-btn" class="w-full bg-red-600 text-white font-bold py-2 px-4 rounded-md hover:bg-red-700">Delete Logo</button>
+                            </div>
+                        </div>
+                        <div>
+                            <h3 class="text-lg font-semibold mb-3 text-sky-400">5. Download</h3>
+                            <button id="download-btn" class="w-full bg-green-600 text-white font-bold py-3 px-4 rounded-md hover:bg-green-700 transition duration-300">Download Cards</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="w-full lg:w-2/3 flex flex-col items-center justify-center bg-gray-800 p-6 rounded-lg shadow-2xl border border-gray-700">
+                    <h2 class="text-2xl font-semibold mb-6 text-white">Live Preview</h2>
+                    <div class="space-y-4">
+                        <div id="card-front" class="card-preview-wrapper"><div class="card-background"></div></div>
+                        <div id="card-back" class="card-preview-wrapper"><div class="card-background"></div></div>
+                    </div>
+                    <p class="text-sm text-gray-500 mt-4">Tip: Drag any item to move it. Click to select and style.</p>
+                </div>
+            </div>
+        </main>
+    </div>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const elements = {
+                generateBtn: document.getElementById('generate-business-card'),
+                downloadBtn: document.getElementById('download-btn'),
+                imageRefInput: document.getElementById('image-reference'),
+                imageRefStatus: document.getElementById('image-ref-status'),
+                styleControls: document.getElementById('style-controls'),
+                textStyleOptions: document.getElementById('text-style-options'),
+                logoStyleOptions: document.getElementById('logo-style-options'),
+                deleteLogoBtn: document.getElementById('delete-logo-btn'),
+                logoUpload: document.getElementById('logo-upload'),
+                socialInputsContainer: document.getElementById('social-inputs'),
+                cardFront: document.getElementById('card-front'),
+                cardBack: document.getElementById('card-back'),
+                nameInput: document.getElementById('name-input'),
+                titleInput: document.getElementById('title-input'),
+                phoneInput: document.getElementById('phone-input'),
+                sloganInput: document.getElementById('slogan-input'),
+                imageOptionsContainer: document.getElementById('image-options-container'),
+                imageOptionsGrid: document.getElementById('image-options-grid'),
+                whiteBackCheck: document.getElementById('white-back-check'),
+            };
+
+            let selectedElement = null, referenceImageBase64 = null, currentBgUrl = '';
+
+            const draggables = {};
+
+            function createDraggable(id, parent, type, content = '') {
+                let el;
+                if (type === 'logo') {
+                    el = document.createElement('img');
+                    el.src = content;
+                    el.classList.add('hidden');
+                } else {
+                    el = document.createElement('div');
+                    el.innerHTML = content;
+                }
+                el.id = id;
+                el.className = 'draggable text-white';
+                parent.appendChild(el);
+                draggables[id] = el;
+                return el;
+            }
+            
+            const verticalLine = document.createElement('div');
+            verticalLine.id = 'vertical-line';
+            Object.assign(verticalLine.style, { position: 'absolute', left: '38%', top: '10%', height: '80%', width: '1px', backgroundColor: 'rgba(255, 255, 255, 0.3)' });
+            elements.cardFront.appendChild(verticalLine);
+
+            createDraggable('logo-front', elements.cardFront, 'logo', '');
+            createDraggable('text-name', elements.cardFront, 'text', 'Your Name');
+            createDraggable('text-title', elements.cardFront, 'text', 'Your Title');
+            createDraggable('text-phone', elements.cardFront, 'text', '(123) 456-7890');
+            const socialContainer = createDraggable('text-socials', elements.cardFront, 'text', '');
+            
+            Object.assign(draggables['logo-front'].style, { top: '50%', left: '19%', transform: 'translate(-50%, -50%)', width: '120px' });
+            Object.assign(draggables['text-name'].style, { top: '25px', left: '45%', fontSize: '20px', fontWeight: 'bold' });
+            Object.assign(draggables['text-title'].style, { top: '52px', left: '45%', fontSize: '14px' });
+            Object.assign(draggables['text-phone'].style, { top: '72px', left: '45%', fontSize: '12px'});
+            Object.assign(socialContainer.style, { top: '100px', left: '45%', display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '12px' });
+
+            createDraggable('text-slogan-back', elements.cardBack, 'text', 'Your Company Slogan');
+            Object.assign(draggables['text-slogan-back'].style, { top: '80px', left: '0px', right: '0px', width: '100%', fontSize: '20px', fontStyle: 'italic', textAlign: 'center' });
+            
+            const socialOptions = [
+                { type: 'email', icon: 'fas fa-envelope' }, { type: 'website', icon: 'fas fa-globe' },
+                { type: 'instagram', icon: 'fab fa-instagram' }, { type: 'x', icon: 'fa-brands fa-x-twitter' },
+                { type: 'linkedin', icon: 'fab fa-linkedin-in' }, { type: 'facebook', icon: 'fab fa-facebook-f' },
+            ];
+            
+            const socialHandles = {};
+
+            const callGeminiAPI = async (prompt, imageData) => {
+                 const apiKey = ""; 
+                 const payload = { contents: [{ role: "user", parts: [ {text: prompt}, { inlineData: { mimeType: "image/png", data: imageData } }] }] };
+                 const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+                 const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+                 if (!response.ok) { throw new Error(`Gemini API error!`); }
+                 const result = await response.json();
+                 if (result.candidates?.[0]?.content?.parts?.[0]?.text) { return result.candidates[0].content.parts[0].text; }
+                 throw new Error("Invalid response from Gemini API");
+            };
+
+            const callImagenAPI = async (prompt) => {
+                const apiKey = "";
+                const payload = { instances: [{ prompt }], parameters: { "sampleCount": 1 } };
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict?key=${apiKey}`;
+                const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+                if (!response.ok) { throw new Error(`Imagen API error!`); }
+                const result = await response.json();
+                if (result.predictions?.[0]?.bytesBase64Encoded) { return `data:image/png;base64,${result.predictions[0].bytesBase64Encoded}`; }
+                throw new Error("Invalid Imagen API response");
+            };
+            
+            function createLoader(parent) {
+                let loaderContainer = parent.querySelector('.loader-container');
+                if (!loaderContainer) {
+                    loaderContainer = document.createElement('div');
+                    loaderContainer.className = 'loader-container';
+                    loaderContainer.innerHTML = `<div class="loader"></div><span class="timer text-white mt-2"></span>`;
+                    parent.appendChild(loaderContainer);
+                }
+                return loaderContainer;
+            }
+
+            async function handleGeneration() {
+                if (!referenceImageBase64) { alert('Please upload a reference image first.'); return; }
+                elements.imageOptionsContainer.classList.remove('hidden');
+                elements.imageOptionsGrid.innerHTML = '';
+                const loader = createLoader(elements.cardFront);
+                loader.classList.remove('hidden');
+                
+                try {
+                    const descPrompt = "Analyze this image's background, completely ignoring any text or logos. Based on this, generate exactly three distinct, literal, and highly descriptive AI art prompts for a professional business card background. The prompts must describe a scene with absolutely no words, letters, or text. The generated background should be abstract or a texture, suitable for print. Do not add any conversational text, just the prompts.";
+                    const descriptionsText = await callGeminiAPI(descPrompt, referenceImageBase64);
+                    const prompts = descriptionsText.split('\n').filter(p => p.trim().length > 10).slice(0, 3);
+                    console.log("Generated Prompts:", prompts);
+                    if (prompts.length === 0) { prompts.push("A professional, high-quality business card background based on the provided image, abstract, no text."); }
+
+                    for (let i = 0; i < 3; i++) {
+                        const placeholder = document.createElement('div');
+                        placeholder.className = 'w-full h-24 bg-gray-700 rounded-lg flex items-center justify-center';
+                        placeholder.innerHTML = `<div class="loader !w-8 !h-8 !border-2"></div>`;
+                        elements.imageOptionsGrid.appendChild(placeholder);
+                    }
+                    
+                    const imageUrls = [];
+                    for (let i = 0; i < prompts.length; i++) {
+                        try {
+                            const finalPrompt = `${prompts[i]}, textless, no words, no letters, no typography`;
+                            const url = await callImagenAPI(finalPrompt);
+                            imageUrls[i] = url; 
+                            const optionDiv = document.createElement('div');
+                            optionDiv.className = 'image-option cursor-pointer rounded-lg overflow-hidden border-2 border-transparent hover:border-sky-500 transition-all';
+                            optionDiv.innerHTML = `<img src="${url}" class="w-full h-24 object-cover">`;
+                            optionDiv.addEventListener('click', () => {
+                                applyBackground(url);
+                                document.querySelectorAll('.image-option').forEach(el => el.classList.remove('selected'));
+                                optionDiv.classList.add('selected');
+                            });
+                             const placeholder = elements.imageOptionsGrid.children[i];
+                             if(placeholder) placeholder.replaceWith(optionDiv);
+                        } catch (err) {
+                             const placeholder = elements.imageOptionsGrid.children[i];
+                             if(placeholder) placeholder.innerHTML = `<div class="text-xs text-red-400 p-2 text-center">Error</div>`;
+                             console.error(`Error generating image for prompt ${i+1}:`, err);
+                        }
+                    }
+                    
+                    if (imageUrls[0]) {
+                        applyBackground(imageUrls[0]);
+                        const firstOption = elements.imageOptionsGrid.children[0];
+                        if(firstOption) firstOption.classList.add('selected');
+                    }
+                } catch (error) {
+                    console.error('Error during generation:', error);
+                    elements.imageOptionsContainer.innerHTML = `<p class="col-span-3 text-red-400 text-center">Generation failed. Please try again.</p>`;
+                } finally {
+                    loader.classList.add('hidden');
+                }
+            }
+            
+            async function applyBackground(imageUrl) {
+                 currentBgUrl = imageUrl;
+                 elements.cardFront.querySelector('.card-background').style.backgroundImage = `url(${imageUrl})`;
+                 updateBackCardBackground();
+
+                const isLight = await isImageLight(imageUrl);
+                const newColor = isLight ? '#374151' : '#FFFFFF';
+                
+                Object.values(draggables).forEach(el => {
+                     if (el.id !== 'text-socials' && el.tagName !== 'IMG') {
+                        el.style.color = newColor;
+                    }
+                });
+                
+                socialContainer.querySelectorAll('.social-item-text').forEach(span => {
+                    span.style.color = newColor;
+                });
+
+                const xIcon = socialContainer.querySelector('.fa-x-twitter');
+                if (xIcon) {
+                    xIcon.style.color = newColor; 
+                }
+                 
+                verticalLine.style.backgroundColor = isLight ? 'rgba(0,0,0,0.2)' : 'rgba(255,255,255,0.3)';
+            }
+            
+            function updateBackCardBackground(){
+                const backBg = elements.cardBack.querySelector('.card-background');
+                const slogan = draggables['text-slogan-back'];
+                if(elements.whiteBackCheck.checked) {
+                    backBg.style.backgroundImage = 'none';
+                    backBg.style.backgroundColor = 'white';
+                    backBg.classList.remove('flipped');
+                    slogan.style.color = '#374151';
+                } else {
+                    backBg.style.backgroundImage = `url(${currentBgUrl})`;
+                    backBg.style.backgroundColor = 'transparent';
+                    backBg.classList.add('flipped');
+                     isImageLight(currentBgUrl).then(isLight => {
+                        slogan.style.color = isLight ? '#374151' : '#FFFFFF';
+                    });
+                }
+            }
+
+            function isImageLight(imageSrc) {
+                return new Promise((resolve) => {
+                    const img = new Image();
+                    img.crossOrigin = 'Anonymous';
+                    img.src = imageSrc;
+                    img.onload = () => {
+                        const canvas = document.createElement('canvas');
+                        canvas.width = 50; canvas.height = 50;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, 50, 50);
+                        const data = ctx.getImageData(0, 0, 50, 50).data;
+                        let colorSum = 0;
+                        for (let i = 0; i < data.length; i += 4) { colorSum += (data[i] * 0.299 + data[i+1] * 0.587 + data[i+2] * 0.114); }
+                        resolve((colorSum / (50*50)) > 160);
+                    };
+                    img.onerror = () => resolve(false);
+                });
+            }
+
+            elements.generateBtn.addEventListener('click', handleGeneration);
+            elements.whiteBackCheck.addEventListener('change', updateBackCardBackground);
+            
+            elements.imageRefInput.addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = (event) => {
+                        referenceImageBase64 = event.target.result.split(',')[1];
+                        elements.imageRefStatus.textContent = `Ready to generate from: ${file.name}`;
+                    };
+                    reader.readAsDataURL(file);
+                }
+            });
+            
+            elements.logoUpload.addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = (event) => {
+                        draggables['logo-front'].src = event.target.result;
+                        draggables['logo-front'].classList.remove('hidden');
+                    };
+                    reader.readAsDataURL(file);
+                }
+            });
+            
+            elements.nameInput.addEventListener('input', (e) => { draggables['text-name'].textContent = e.target.value; });
+            elements.titleInput.addEventListener('input', (e) => { draggables['text-title'].textContent = e.target.value; });
+            elements.phoneInput.addEventListener('input', (e) => { draggables['text-phone'].textContent = e.target.value; });
+            elements.sloganInput.addEventListener('input', (e) => { draggables['text-slogan-back'].textContent = e.target.value; });
+
+            socialOptions.forEach((opt) => {
+                const checkbox = document.getElementById(`${opt.type === 'x' ? 'x' : opt.type}-check`);
+                checkbox.addEventListener('change', (e) => {
+                    const existingInput = document.getElementById(`input-wrapper-${opt.type}`);
+                    let draggableText = socialContainer.querySelector(`#social-item-${opt.type}`);
+
+                    if (e.target.checked && !existingInput) {
+                        const inputWrapper = document.createElement('div');
+                        inputWrapper.id = `input-wrapper-${opt.type}`;
+                        inputWrapper.innerHTML = `<input type="text" id="input-${opt.type}" class="w-full p-2 bg-gray-700 border border-gray-600 rounded-md text-white" placeholder="${opt.type} handle/address">`;
+                        elements.socialInputsContainer.appendChild(inputWrapper);
+                        
+                        if (!draggableText) {
+                            draggableText = document.createElement('div');
+                            draggableText.id = `social-item-${opt.type}`;
+                            socialContainer.appendChild(draggableText);
+                        }
+                        
+                        const handle = socialHandles[opt.type] || '';
+                        draggableText.innerHTML = `<i class="social-icon-${opt.type} ${opt.icon} fa-fw mr-2"></i><span class="social-item-text">${handle}</span>`;
+                        
+                        const inputField = document.getElementById(`input-${opt.type}`);
+                        inputField.value = handle;
+                        inputField.addEventListener('input', (evt) => {
+                           socialHandles[opt.type] = evt.target.value;
+                           draggableText.innerHTML = `<i class="social-icon-${opt.type} ${opt.icon} fa-fw mr-2"></i><span class="social-item-text">${evt.target.value}</span>`;
+                        });
+                        
+                    } else if (!e.target.checked && existingInput) {
+                        existingInput.remove();
+                        draggableText?.remove();
+                    }
+                });
+            });
+
+            let activeDrag = false, initialMouseX, initialMouseY, initialElTop, initialElLeft;
+            document.body.addEventListener('mousedown', (e) => {
+                const target = e.target.closest('.draggable');
+                 if (target) {
+                    selectedElement = target;
+                    initialElLeft = selectedElement.offsetLeft;
+                    initialElTop = selectedElement.offsetTop;
+                    initialMouseX = e.clientX;
+                    initialMouseY = e.clientY;
+                    activeDrag = true;
+                    
+                    document.querySelectorAll('.draggable').forEach(el => el.classList.remove('selected'));
+                    selectedElement.classList.add('selected');
+                    elements.styleControls.classList.remove('opacity-50');
+
+                    const isLogo = selectedElement.tagName === 'IMG';
+                    elements.textStyleOptions.style.display = isLogo ? 'none' : 'grid';
+                    elements.deleteLogoBtn.parentElement.style.display = isLogo ? 'block' : 'none';
+
+                    if(!isLogo) {
+                         const styles = window.getComputedStyle(selectedElement);
+                         document.getElementById('font-family').value = styles.fontFamily.split(',')[0].replace(/"/g, '').trim();
+                         document.getElementById('font-size').value = parseInt(styles.fontSize);
+                         document.getElementById('font-color').value = rgbToHex(styles.color);
+                         document.getElementById('font-weight').value = styles.fontWeight;
+                    }
+                }
+            });
+            document.body.addEventListener('mousemove', (e) => {
+                 if (activeDrag && selectedElement) {
+                    e.preventDefault();
+                    const dx = e.clientX - initialMouseX;
+                    const dy = e.clientY - initialMouseY;
+                    selectedElement.style.left = `${initialElLeft + dx}px`;
+                    selectedElement.style.top = `${initialElTop + dy}px`;
+                 }
+            });
+            document.body.addEventListener('mouseup', () => { activeDrag = false; });
+            
+            document.getElementById('font-family').addEventListener('change', (e) => { if (selectedElement && !selectedElement.tagName.includes('IMG')) selectedElement.style.fontFamily = e.target.value; });
+            document.getElementById('font-size').addEventListener('input', (e) => { if (selectedElement && !selectedElement.tagName.includes('IMG')) selectedElement.style.fontSize = e.target.value + 'px'; });
+            document.getElementById('font-color').addEventListener('input', (e) => { if (selectedElement && !selectedElement.tagName.includes('IMG')) selectedElement.style.color = e.target.value; });
+            document.getElementById('font-weight').addEventListener('change', (e) => { if (selectedElement && !selectedElement.tagName.includes('IMG')) selectedElement.style.fontWeight = e.target.value; });
+
+             elements.downloadBtn.addEventListener('click', () => {
+                if(selectedElement) selectedElement.classList.remove('selected');
+                setTimeout(() => {
+                    html2canvas(elements.cardFront, { scale: 3, useCORS: true, backgroundColor: null }).then(canvasFront => {
+                    html2canvas(elements.cardBack, { scale: 3, useCORS: true, backgroundColor: null }).then(canvasBack => {
+                        const link = document.createElement('a');
+                        link.download = `business-card-front.png`;
+                        link.href = canvasFront.toDataURL('image/png', 1.0);
+                        link.click();
+                        setTimeout(() => {
+                           const linkBack = document.createElement('a');
+                            linkBack.download = `business-card-back.png`;
+                            linkBack.href = canvasBack.toDataURL('image/png', 1.0);
+                            linkBack.click();
+                        }, 500);
+                    });
+                    });
+                }, 100);
+            });
+            
+             elements.deleteLogoBtn.addEventListener('click', () => {
+                if (selectedElement && selectedElement.tagName === 'IMG') {
+                    selectedElement.classList.add('hidden');
+                    elements.logoUpload.value = '';
+                    selectedElement = null;
+                    elements.styleControls.classList.add('opacity-50');
+                }
+            });
+            
+            function rgbToHex(rgb) {
+                if (!rgb || !rgb.includes('rgb')) return '#FFFFFF';
+                let sep = rgb.indexOf(",") > -1 ? "," : " ";
+                rgb = rgb.substr(rgb.indexOf("(") + 1).split(")")[0].split(sep);
+                let r = (+rgb[0]).toString(16).padStart(2, '0'),
+                    g = (+rgb[1]).toString(16).padStart(2, '0'),
+                    b = (+rgb[2]).toString(16).padStart(2, '0');
+                return "#" + r + g + b;
+            }
+
+        });
+    </script>
+</body>
+</html>
